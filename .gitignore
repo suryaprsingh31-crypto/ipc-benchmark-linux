@@ -1,0 +1,4 @@
+pipe_benchmark
+mq_benchmark
+shm_benchmark
+*.o

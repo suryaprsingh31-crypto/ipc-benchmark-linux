@@ -2,3 +2,6 @@ pipe_benchmark
 mq_benchmark
 shm_benchmark
 *.o
+/bin/
+/results/
+scripts/__pycache__/

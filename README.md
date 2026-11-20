@@ -52,21 +52,21 @@ This creates `bin/pipe_benchmark`, `bin/mq_benchmark`, and `bin/shm_benchmark`.
 
 ## Run one benchmark
 
-All programs take the same positional arguments:
+All three programs share the same named command-line interface:
 
 ```text
-PROGRAM [messages [message_size_bytes [capacity_messages]]]
+PROGRAM [--messages COUNT] [--message-size BYTES] [--capacity SLOTS]
 ```
 
-Defaults: 100,000 messages, 64 bytes per message, and a queue capacity of 8 messages. Example:
+The defaults are 100,000 messages, 64 bytes per message, and a capacity of 8 messages. `--messages` and `--message-size` define the common workload; `--capacity` controls the bounded buffering policy. All values must be positive integers. Example:
 
 ```bash
-./bin/pipe_benchmark 100000 64 8
-./bin/mq_benchmark 100000 64 8
-./bin/shm_benchmark 100000 64 8
+./bin/pipe_benchmark --messages 100000 --message-size 64 --capacity 8
+./bin/mq_benchmark --messages 100000 --message-size 64 --capacity 8
+./bin/shm_benchmark --messages 100000 --message-size 64 --capacity 8
 ```
 
-Each prints one CSV row in this field order:
+Each prints the same CSV header and one result row in this field order:
 
 ```text
 method,messages,message_size_bytes,requested_capacity_messages,actual_capacity_bytes,elapsed_seconds,throughput_mib_s,messages_per_second
@@ -78,7 +78,7 @@ The requested capacity is a message count. Shared memory allocates exactly that 
 
 ## Collect repeated measurements and syscall summaries
 
-The runner performs one warmup per method and configuration, randomizes method order for each repeat, writes raw timing samples to CSV, then runs separate `strace -f -c` measurements. It sweeps both message counts and message sizes. `strace` is kept out of the timed measurements because tracing changes performance.
+The runner passes these same named workload and capacity options to each executable. It performs one warmup per method and configuration, randomizes method order for each repeat, validates the executable's CSV header, writes raw timing samples to CSV, then runs separate `strace -f -c` measurements. It sweeps both message counts and message sizes. `strace` is kept out of the timed measurements because tracing changes performance.
 
 ```bash
 python3 scripts/run_benchmarks.py \

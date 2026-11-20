@@ -3,6 +3,7 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdint.h>
@@ -22,7 +23,10 @@ typedef struct {
 } bench_config;
 
 static inline void usage(const char *program) {
-    fprintf(stderr, "Usage: %s [messages [message_size_bytes [capacity_messages]]]\n", program);
+    fprintf(stderr,
+            "Usage: %s [--messages COUNT] [--message-size BYTES] [--capacity SLOTS]\n"
+            "Defaults: --messages 100000 --message-size 64 --capacity 8\n",
+            program);
 }
 
 static inline int parse_u64(const char *s, uint64_t *out) {
@@ -40,17 +44,38 @@ static inline int parse_config(int argc, char **argv, bench_config *cfg) {
     cfg->messages = 100000;
     cfg->message_size = 64;
     cfg->capacity = 8;
-    uint64_t v;
-    if (argc > 4) { usage(argv[0]); return -1; }
-    if (argc > 1) { if (parse_u64(argv[1], &cfg->messages)) goto invalid; }
-    if (argc > 2) {
-        if (parse_u64(argv[2], &v) || v > SIZE_MAX) goto invalid;
-        cfg->message_size = (size_t)v;
+
+    static const struct option options[] = {
+        {"messages", required_argument, NULL, 'n'},
+        {"message-size", required_argument, NULL, 's'},
+        {"capacity", required_argument, NULL, 'c'},
+        {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0}
+    };
+    int option;
+    while ((option = getopt_long(argc, argv, "n:s:c:h", options, NULL)) != -1) {
+        uint64_t v;
+        switch (option) {
+            case 'n':
+                if (parse_u64(optarg, &cfg->messages)) goto invalid;
+                break;
+            case 's':
+                if (parse_u64(optarg, &v) || v > SIZE_MAX) goto invalid;
+                cfg->message_size = (size_t)v;
+                break;
+            case 'c':
+                if (parse_u64(optarg, &v) || v > SIZE_MAX) goto invalid;
+                cfg->capacity = (size_t)v;
+                break;
+            case 'h':
+                usage(argv[0]);
+                return 1;
+            default:
+                usage(argv[0]);
+                return -1;
+        }
     }
-    if (argc > 3) {
-        if (parse_u64(argv[3], &v) || v > SIZE_MAX) goto invalid;
-        cfg->capacity = (size_t)v;
-    }
+    if (optind != argc) goto invalid;
     if (cfg->message_size > (size_t)SSIZE_MAX || cfg->message_size > (size_t)LONG_MAX || cfg->capacity > (size_t)LONG_MAX ||
         cfg->messages > UINT64_MAX / cfg->message_size ||
         cfg->capacity > SIZE_MAX / cfg->message_size) goto invalid;
@@ -100,7 +125,8 @@ static inline int wait_success(pid_t pid) {
 
 static inline void report_result(const char *method, const bench_config *cfg, double elapsed) {
     double bytes = (double)cfg->messages * (double)cfg->message_size;
-    printf("%s,\"%" PRIu64 "\",%zu,%zu,%zu,%.9f,%.3f,%.3f\n",
+    puts("method,messages,message_size_bytes,requested_capacity_messages,actual_capacity_bytes,elapsed_seconds,throughput_mib_s,messages_per_second");
+    printf("%s,%" PRIu64 ",%zu,%zu,%zu,%.9f,%.3f,%.3f\n",
            method, cfg->messages, cfg->message_size, cfg->capacity, cfg->actual_capacity_bytes, elapsed,
            (bytes / (1024.0 * 1024.0)) / elapsed, (double)cfg->messages / elapsed);
 }

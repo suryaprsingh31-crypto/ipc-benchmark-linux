@@ -4,7 +4,8 @@
 
 int main(int argc, char **argv) {
     bench_config cfg;
-    if (parse_config(argc, argv, &cfg)) return 2;
+    int config_status = parse_config(argc, argv, &cfg);
+    if (config_status) return config_status > 0 ? 0 : 2;
     int data[2], ready[2], start[2];
     if (pipe(data) || pipe(ready) || pipe(start)) { perror("pipe"); return 1; }
     if (cfg.capacity * cfg.message_size <= (size_t)INT_MAX)

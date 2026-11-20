@@ -5,7 +5,8 @@
 
 int main(int argc, char **argv) {
     bench_config cfg;
-    if (parse_config(argc, argv, &cfg)) return 2;
+    int config_status = parse_config(argc, argv, &cfg);
+    if (config_status) return config_status > 0 ? 0 : 2;
     char name[64];
     snprintf(name, sizeof(name), "/ipcbench_%ld", (long)getpid());
     struct mq_attr attr = {0};

@@ -16,14 +16,15 @@ COLUMNS = ("method", "messages", "message_size_bytes", "requested_capacity_messa
 
 
 def execute(binary: Path, messages: int, size: int, capacity: int) -> dict:
-    command = [str(binary), str(messages), str(size), str(capacity)]
+    command = [str(binary), "--messages", str(messages), "--message-size", str(size),
+               "--capacity", str(capacity)]
     proc = subprocess.run(command, check=False, text=True, capture_output=True)
     if proc.returncode:
         raise subprocess.CalledProcessError(proc.returncode, command, output=proc.stdout, stderr=proc.stderr)
-    rows = list(csv.reader(proc.stdout.splitlines()))
-    if len(rows) != 1 or len(rows[0]) != len(COLUMNS):
+    rows = list(csv.DictReader(proc.stdout.splitlines()))
+    if len(rows) != 1 or tuple(rows[0].keys()) != COLUMNS:
         raise RuntimeError(f"Unexpected benchmark output from {' '.join(command)}: {proc.stdout!r}")
-    return dict(zip(COLUMNS, rows[0]))
+    return rows[0]
 
 
 def write_metadata(path: Path, args: argparse.Namespace) -> None:
@@ -114,7 +115,8 @@ def main() -> int:
                     stem = f"{method}_messages-{messages}_size-{size}_capacity-{args.capacity}"
                     trace_path = trace_dir / f"{stem}.txt"
                     command = ["strace", "-f", "-c", "-o", str(trace_path), str(binaries[method]),
-                               str(messages), str(size), str(args.capacity)]
+                               "--messages", str(messages), "--message-size", str(size),
+                               "--capacity", str(args.capacity)]
                     subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
                     print(f"Saved syscall summary: {trace_path}")
     print(f"Saved timing samples: {result_file}")

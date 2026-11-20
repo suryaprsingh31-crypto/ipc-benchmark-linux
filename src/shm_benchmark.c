@@ -19,7 +19,8 @@ static int sync_ok(int rc, const char *what) {
 
 int main(int argc, char **argv) {
     bench_config cfg;
-    if (parse_config(argc, argv, &cfg)) return 2;
+    int config_status = parse_config(argc, argv, &cfg);
+    if (config_status) return config_status > 0 ? 0 : 2;
     size_t slots_bytes = cfg.capacity * cfg.message_size;
     if (slots_bytes > SIZE_MAX - sizeof(shared_queue)) { fprintf(stderr, "Shared-memory size overflow.\n"); return 2; }
     size_t total_size = sizeof(shared_queue) + slots_bytes;

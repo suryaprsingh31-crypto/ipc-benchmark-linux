@@ -15,7 +15,19 @@ int main(int argc, char **argv) {
     mqd_t q = mq_open(name, O_CREAT | O_EXCL | O_RDWR, 0600, &attr);
     if (q == (mqd_t)-1) { perror("mq_open (check /proc/sys/fs/mqueue limits)"); return 1; }
     struct mq_attr actual;
-    if (mq_getattr(q, &actual) == 0) cfg.actual_capacity_bytes = (size_t)actual.mq_maxmsg * (size_t)actual.mq_msgsize;
+    if (mq_getattr(q, &actual) == -1) {
+        perror("mq_getattr");
+        mq_close(q);
+        mq_unlink(name);
+        return 1;
+    }
+    if (actual.mq_maxmsg != (long)cfg.capacity || actual.mq_msgsize != (long)cfg.message_size) {
+        fprintf(stderr, "POSIX message queue attributes do not match the requested depth and message size.\n");
+        mq_close(q);
+        mq_unlink(name);
+        return 1;
+    }
+    cfg.actual_capacity_bytes = (size_t)actual.mq_maxmsg * (size_t)actual.mq_msgsize;
     int ready[2], start[2];
     if (pipe(ready) || pipe(start)) { perror("pipe"); mq_close(q); mq_unlink(name); return 1; }
     char *buffer = malloc(cfg.message_size);
@@ -34,10 +46,15 @@ int main(int argc, char **argv) {
         for (uint64_t i = 0; i < cfg.messages; ++i) {
             ssize_t n;
             do { n = mq_receive(q, buffer, cfg.message_size, NULL); } while (n < 0 && errno == EINTR);
-            if (n < 0 || (size_t)n != cfg.message_size) { perror("mq_receive"); _exit(4); }
+            if (n < 0) { perror("mq_receive"); _exit(4); }
+            if ((size_t)n != cfg.message_size) {
+                fprintf(stderr, "mq_receive returned %zd bytes; expected %zu.\n", n, cfg.message_size);
+                _exit(4);
+            }
             for (size_t j = 0; j < cfg.message_size; ++j) if (buffer[j] != 'A') _exit(5);
         }
-        mq_close(q); _exit(0);
+        if (mq_close(q) == -1) { perror("mq_close (consumer)"); _exit(6); }
+        _exit(0);
     }
     close(ready[1]); close(start[0]);
     char token;

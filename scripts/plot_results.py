@@ -28,22 +28,34 @@ def main() -> None:
     fig, axes = plt.subplots(len(counts), 2, figsize=(12, 5 * len(counts)), squeeze=False, constrained_layout=True)
     for row_index, count in enumerate(counts):
         for method in LABELS:
-            medians, lows, highs, msg_rates = [], [], [], []
+            medians, lows, highs = [], [], []
+            msg_rates, msg_lows, msg_highs = [], [], []
             for size in sizes:
                 rows = groups.get((method, count, size), [])
                 values = sorted(float(r["throughput_mib_s"]) for r in rows)
                 if not values:
-                    medians.append(float("nan")); lows.append(0); highs.append(0); msg_rates.append(float("nan")); continue
+                    medians.append(float("nan")); lows.append(0); highs.append(0)
+                    msg_rates.append(float("nan")); msg_lows.append(0); msg_highs.append(0)
+                    continue
                 median = statistics.median(values)
                 if len(values) == 1:
                     q1 = q3 = median
                 else:
                     q1, _, q3 = statistics.quantiles(values, n=4, method="inclusive")
                 medians.append(median); lows.append(max(0.0, median - q1)); highs.append(max(0.0, q3 - median))
-                msg_rates.append(statistics.median(float(r["messages_per_second"]) for r in rows))
+                message_rates = sorted(float(r["messages_per_second"]) for r in rows)
+                message_median = statistics.median(message_rates)
+                if len(message_rates) == 1:
+                    message_q1 = message_q3 = message_median
+                else:
+                    message_q1, _, message_q3 = statistics.quantiles(message_rates, n=4, method="inclusive")
+                msg_rates.append(message_median)
+                msg_lows.append(max(0.0, message_median - message_q1))
+                msg_highs.append(max(0.0, message_q3 - message_median))
             axes[row_index, 0].errorbar(sizes, medians, yerr=[lows, highs], marker="o", capsize=3,
                                         label=LABELS[method], color=COLORS[method])
-            axes[row_index, 1].plot(sizes, msg_rates, marker="o", label=LABELS[method], color=COLORS[method])
+            axes[row_index, 1].errorbar(sizes, msg_rates, yerr=[msg_lows, msg_highs], marker="o", capsize=3,
+                                        label=LABELS[method], color=COLORS[method])
         axes[row_index, 0].set_title(f"{count:,} messages — throughput")
         axes[row_index, 1].set_title(f"{count:,} messages — message rate")
         axes[row_index, 0].set_ylabel("Throughput (MiB/s)")
@@ -51,6 +63,10 @@ def main() -> None:
         for ax in axes[row_index]:
             ax.set_xlabel("Message size (bytes)")
             ax.set_xscale("log", base=2)
+            ax.set_xticks(sizes, labels=[f"{size:,}" for size in sizes])
+            ax.tick_params(axis="x", labelrotation=30)
+            for tick_label in ax.get_xticklabels():
+                tick_label.set_horizontalalignment("right")
             ax.grid(True, alpha=0.3)
             ax.legend()
     fig.suptitle("Producer–consumer IPC benchmark (median; bars show IQR)")

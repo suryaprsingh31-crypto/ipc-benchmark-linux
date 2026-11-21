@@ -1,0 +1,17 @@
+collected_utc=2026-11-21T10:30:18.404449+00:00
+platform=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+kernel=6.6.87.2-microsoft-standard-WSL2
+architecture=x86_64
+python=3.12.3
+gcc=gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+compiler_flags=-O2 -std=c11 -Wall -Wextra -Wpedantic
+message_counts=10000,50000
+sizes_bytes=8,64,256,1024,4096
+requested_capacity_messages=8
+warmups=1
+repeats=5
+cpu=AMD Ryzen 7 7435HS
+load_average_at_start=0.43
+mqueue_msg_max=10
+mqueue_msgsize_max=8192
+mqueue_queues_max=256
